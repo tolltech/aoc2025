@@ -8,14 +8,18 @@ public class Task01
 {
     [Test]
     [TestCase(
-        @"3   4
-4   3
-2   5
-1   3
-3   9
-3   3",
-        11)]
-    [TestCase(@"Task01.txt", 1722302)]
+        @"L68
+L30
+R48
+L5
+R60
+L55
+L1
+L99
+R14
+L82",
+        3)]
+    [TestCase(@"Task01.txt", 1180)]
     public void Task(string input, int expected)
     {
         input = File.Exists(input) ? File.ReadAllText(input) : input;
@@ -24,24 +28,30 @@ public class Task01
 
         var lines = input.SplitLines();
 
-        var left = new List<int>();
-        var right = new List<int>();
-
+        var current = 50;
         foreach (var line in lines)
         {
-            var split = line.SplitEmpty(" ").Select(int.Parse).ToArray();
-            left.Add(split[0]);
-            right.Add(split[1]);
+            var delta = int.Parse(new string(line.Where(char.IsDigit).ToArray()));
+            if (line.Contains('L'))
+            {
+                delta = -delta;
+            }
+
+            current = Op(current, delta);
+
+            if (current == 0) ++result;
         }
-
-        var leftStack = new Stack<int>(left.OrderBy(x => x));
-        var rightStack = new Stack<int>(right.OrderBy(x => x));
-
-        while (leftStack.Count > 0 && rightStack.Count > 0)
-        {
-            result += Math.Abs(leftStack.Pop() - rightStack.Pop());
-        }
-
+        
         result.Should().Be(expected);
+    }
+
+    private static int Op(int current, int delta)
+    {
+        var normDelta = Math.Abs(delta) % 100;
+        if (delta < 0)
+        {
+            delta = 100 - normDelta;
+        }
+        return (current + delta) % 100;
     }
 }

@@ -8,39 +8,60 @@ public class Task01_2
 {
     [Test]
     [TestCase(
-        @"3   4
-4   3
-2   5
-1   3
-3   9
-3   3",
-        31)]
-    [TestCase(@"Task01.txt", 20373490)]
-    public void Task(string input, long expected)
+        @"L68
+L30
+R48
+L5
+R60
+L55
+L1
+L99
+R14
+L82",
+        6)]
+    [TestCase(@"Task01.txt", 0)]
+    public void Task(string input, int expected)
     {
         input = File.Exists(input) ? File.ReadAllText(input) : input;
 
-        var result = 0L;
+        var result = 0;
 
         var lines = input.SplitLines();
 
-        var left = new List<int>();
-        var right = new List<int>();
-
+        var current = 50;
         foreach (var line in lines)
         {
-            var split = line.SplitEmpty(" ").Select(int.Parse).ToArray();
-            left.Add(split[0]);
-            right.Add(split[1]);
-        }
-        
-        var rightStack = right.GroupBy(x => x).ToDictionary(x => x.Key, x => x.Count());
+            var delta = int.Parse(new string(line.Where(char.IsDigit).ToArray()));
+            if (line.Contains('L'))
+            {
+                delta = -delta;
+            }
 
-        foreach (var x in left)
-        {
-            result += x * rightStack.SafeGet(x);
+            current = Op(current, delta, out var zeroCount);
+
+            result += zeroCount;
         }
 
         result.Should().Be(expected);
+    }
+
+    private static int Op(int current, int delta, out int zeroCount)
+    {
+        zeroCount = Math.Abs(delta) / 100;
+
+        var normDelta = Math.Abs(delta) % 100;
+        var normSignDelta = Math.Sign(delta) * normDelta;
+
+        if (current != 0 && (current + normSignDelta >= 100 || current + normSignDelta <= 0))
+        {
+            ++zeroCount;
+        }
+
+        if (delta < 0)
+        {
+            delta = 100 - normDelta;
+        }
+
+        return (current + delta) % 100;
     }
 }
