@@ -19,7 +19,7 @@ L99
 R14
 L82",
         6)]
-    [TestCase(@"Task01.txt", 0)]
+    [TestCase(@"Task01.txt", 6892)]
     public void Task(string input, int expected)
     {
         input = File.Exists(input) ? File.ReadAllText(input) : input;
