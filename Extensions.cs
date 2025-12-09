@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Text;
+﻿using System.Text;
 
 namespace AoC_2025;
 
@@ -296,69 +295,5 @@ public static class Extensions
     static void Swap<T>(ref T a, ref T b)
     {
         (a, b) = (b, a);
-    }
-}
-
-[DebuggerDisplay("X:{X},Y:{Y}")]
-public struct Point : IEquatable<Point>
-{
-    public Point()
-    {
-    }
-
-    public Point(int Row, int Col)
-    {
-        this.Row = Row;
-        this.Col = Col;
-    }
-
-    public int Col;
-    public int Row;
-
-    public int X
-    {
-        get => Col;
-        set => Col = value;
-    }
-
-    public int Y
-    {
-        get => Row;
-        set => Row = value;
-    }
-
-    public static Point operator +(Point p1, Point p2)
-    {
-        return new Point(p1.Y + p2.Y, p1.X + p2.X);
-    }
-
-    public static Point operator -(Point p1, Point p2)
-    {
-        return new Point(p1.Y - p2.Y, p1.X - p2.X);
-    }
-
-    public static implicit operator (int Row, int Col)(Point p)
-    {
-        return (p.Row, p.Col);
-    }
-
-    public static implicit operator Point((int Row, int Col) p)
-    {
-        return new Point(p.Row, p.Col);
-    }
-
-    public bool Equals(Point other)
-    {
-        return Col == other.Col && Row == other.Row;
-    }
-
-    public override bool Equals(object obj)
-    {
-        return obj is Point other && Equals(other);
-    }
-
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(Col, Row);
     }
 }
