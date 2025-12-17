@@ -1,4 +1,6 @@
-﻿using FluentAssertions;
+﻿using System.Diagnostics;
+using System.Text;
+using FluentAssertions;
 using NUnit.Framework;
 
 namespace AoC_2025;
@@ -19,24 +21,23 @@ public class Task10_2
 
         var result = 0L;
         var maxDelta = 0;
-        var maxB = 0;
+        var maxB = 0L;
 
         foreach (var line in input.SplitLines())
         {
             var splits = line.SplitEmpty(" ");
 
             var buttons = splits.Skip(1).Take(splits.Length - 2)
-                .Select(x => x.Trim('(', ')').SplitEmpty(",").Select(int.Parse).ToArray())
+                .Select(x => x.Trim('(', ')').SplitEmpty(",").Select(long.Parse).ToArray())
                 .ToList();
 
-            var b = splits.Last().Trim('{', '}').SplitEmpty(",").Select(int.Parse).ToArray();
+            var b = splits.Last().Trim('{', '}').SplitEmpty(",").Select(long.Parse).ToArray();
 
             var delta = buttons.Count - b.Length;
             if (maxDelta < delta) maxDelta = delta;
-            if (maxB < b.Max()) maxB = b.Max();
+            //if (maxB < b.Max()) maxB = b.Max();
 
-
-            var a = b.Select(_ => Enumerable.Repeat(0, buttons.Count).ToArray()).ToList();
+            var a = new Matrix(b.Select(_ => Enumerable.Repeat(0L, buttons.Count).ToArray()).ToList());
             for (var i = 0; i < a.Count; i++)
             for (var j = 0; j < a[i].Length; ++j)
             {
@@ -46,33 +47,42 @@ public class Task10_2
                     a[i][j] = 0;
             }
 
-            (a, b) = Normalize(a, b);
+            Triangle(a, b);
 
-            if (b.Length == a[0].Length)
-            {
-                var xs = Solve(a.Select(x => x.Select(y => (double)y).ToArray()).ToArray(), b)
-                    .Select(Convert.ToInt32).ToArray();
+            var m = a.SelectMany(x => x).Concat(b).Max();
+            if (maxB < m) maxB = m;
 
-                if (xs.Any(x => x < 0)) throw new Exception("Negative value");
-
-                result += xs.Sum();
-            }
-            else if (b.Length < a[0].Length)
-            {
-                var max = b.Max();
-                for (var i = 0; i <= max; ++i)
-                {
-                }
-            }
+            result = maxB;
         }
 
         result.Should().Be(expected);
     }
 
-    private (List<int[]> a, int[] b) Normalize(List<int[]> a, int[] b)
+    private long K(List<long[]> a, long[] b)
     {
-        var newA = new List<int[]>();
-        var newB = new List<int>();
+        var maxs = Enumerable.Repeat(0L, a[0].Length).ToArray();
+        for (var j = 0; j < a[0].Length; ++j)
+        {
+            var max = 1L;
+            for (var i = 0; i < a.Count; ++i)
+            {
+                if (a[i][j] == 0) continue;
+                if (max < b[i])
+                {
+                    max = b[i];
+                }
+            }
+
+            maxs[j] = max;
+        }
+
+        return maxs.Aggregate(1L, (d, d1) => d * d1);
+    }
+
+    private (Matrix a, long[] b) Normalize(Matrix a, long[] b)
+    {
+        var newA = new Matrix();
+        var newB = new List<long>();
         var cache = new HashSet<string>();
 
         for (var i = 0; i < a.Count; i++)
@@ -90,59 +100,134 @@ public class Task10_2
         return (newA, newB.ToArray());
     }
 
-    public double[] Solve(double[][] matrix, int[] freeMembers)
+    private static void Triangle(Matrix a, long[] b)
     {
-        if (matrix.GetLength(0) != freeMembers.Length)
-            throw new ArgumentException();
-
-        const double eps = 1e-9;
-        int m = matrix.Length, n = matrix[0].Length;
-        var fullMatrix = matrix.Select((row, i) => row.Concat([freeMembers[i]]).ToArray()).ToArray();
-        var resRows = Enumerable.Repeat(-1, n).ToArray();
-        for (int col = 0, row = 0; row < m && col < n; col++)
+        for (var i = 0; i < a[0].Length; ++i)
         {
-            var maxInCol = Enumerable.Range(row, m - row).Select(rowIndex =>
-                    (absValue: Math.Abs(fullMatrix[rowIndex][col]), rowIndex))
-                .Max();
-            if (maxInCol.absValue < eps)
-                continue;
-            // ReSharper disable once CompareOfFloatsByEqualityOperator
-            var rowWithMaxElement = maxInCol.rowIndex;
-            Swap(fullMatrix, row, rowWithMaxElement);
-            for (var r = 0; r < m; r++)
-                if (r != row)
+            if (i >= a.Count) break;
+
+            if (a[i][i] == 0)
+            {
+                var suitableRow = a.Select((row, index) => (row, index)).Skip(i + 1).FirstOrDefault(x => x.row[i] != 0);
+                if (suitableRow.row == null) continue;
+
+                Swap(b, i, suitableRow.index);
+                Swap(a, i, suitableRow.index);
+            }
+
+            Zero(a, b, i);
+        }
+    }
+
+    private static void Zero(Matrix a, long[] b, int i)
+    {
+        for (var r = i + 1; r < a.Count; ++r)
+        {
+            var baseTop = a[i][i];
+            var baseBottom = a[r][i];
+            
+            if (baseBottom == 0) continue;
+            
+            var newTopRow = a[i].Select(x => x * baseBottom).ToArray();
+            var newBottomRow = a[r].Select(x => x * baseTop).ToArray();
+            var newRow = newBottomRow.Select((x, index) => x - newTopRow[index]).ToArray();
+
+            b[r] = b[r] * baseTop - b[i] * baseBottom;
+            a[r] = newRow;
+        }
+    }
+
+    [TestCaseSource(nameof(Triangles))]
+    public string TriangleTest(Matrix a, long[] b)
+    {
+        Triangle(a, b);
+
+        return a.Dbg.SplitLines().Select((x, i) => $"{x} {b[i]}").JoinToString(Environment.NewLine);
+    }
+
+    private static void Swap<T>(IList<T> array, int i, int j)
+    {
+        (array[j], array[i]) = (array[i], array[j]);
+    }
+
+    public static IEnumerable<TestCaseData> Triangles()
+    {
+        yield return new TestCaseData(new Matrix
+            {
+                new long[] { 2, 4, 1 },
+                new long[] { 3, 0, 6 },
+                new long[] { 9, 1, 2 },
+            }, new long[]
+            {
+                7, 8, 3
+            })
+            .Returns(@"2 4 1 7
+0 -12 9 -5
+0 0 366 514");
+        yield return new TestCaseData(new Matrix
+            {
+                new long[] { 2, 4, 1 },
+                new long[] { 0, 3, 6 },
+                new long[] { 9, 1, 2 },
+            }, new long[]
+            {
+                7, 8, 3
+            })
+            .Returns(@"2 4 1 7
+0 3 6 8
+0 0 189 101");
+        yield return new TestCaseData(new Matrix
+            {
+                new long[] { 0, 3, 6 },
+                new long[] { 2, 4, 1 },
+                new long[] { 9, 1, 2 },
+            }, new long[]
+            {
+                8, 7, 3
+            })
+            .Returns(@"2 4 1 7
+0 3 6 8
+0 0 189 101");
+        
+        yield return new TestCaseData(new Matrix
+            {
+                new long[] { 0, 3, 6 },
+                new long[] { 2, 4, 1 },
+                new long[] { 2, 4, 1 },
+            }, new long[]
+            {
+                3, 7, 7
+            })
+            .Returns(@"2 4 1 7
+0 3 6 3
+0 0 0 0");
+    }
+
+    [DebuggerDisplay("{Dbg}")]
+    public class Matrix : List<long[]>
+    {
+        public Matrix()
+        {
+            
+        }
+
+        public Matrix(IEnumerable<long[]> collection) : base(collection)
+        {
+            
+        }
+        
+        public string Dbg {
+            get
+            {
+                var sb = new StringBuilder();
+                foreach (var row in this)
                 {
-                    var coefficient = fullMatrix[r][col] / fullMatrix[row][col];
-                    for (var c = col; c <= n; c++)
-                        fullMatrix[r][c] -= fullMatrix[row][c] * coefficient;
+                    sb.AppendLine(row.JoinToString(" "));
                 }
-
-            resRows[col] = row++;
+                return  sb.ToString();
+            }
         }
 
-        if (!IsSolution(fullMatrix, eps))
-            throw new Exception("No solution");
 
-        // Если остались row с не нулевыми значениями в последнем столбце (свободных членах), то решений нет.
-        // Если не осталось row, или все оставшиеся row состоят из нулей, то решение есть и вычисляется так ↓
-        return resRows.Select((row, col) => row < 0 ? 0.0 : fullMatrix[row][n] * 1.0 / fullMatrix[row][col]).ToArray();
-    }
-
-    private static void Swap<T>(T[] array, int i, int j)
-    {
-        (array[i], array[j]) = (array[j], array[i]);
-    }
-
-    private static bool IsSolution(double[][] matrix, double accuracy)
-    {
-        foreach (var row in matrix)
-        {
-            var rowWithoutFreeMember = row.Take(row.Length - 1);
-            var freeMember = row.Last();
-            if (rowWithoutFreeMember.All(n => Math.Abs(n) < accuracy) && Math.Abs(freeMember) > accuracy)
-                return false;
-        }
-
-        return true;
     }
 }
