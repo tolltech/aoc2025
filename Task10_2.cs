@@ -14,6 +14,7 @@ public class Task10_2
 [...#.] (0,2,3,4) (2,3) (0,4) (0,1,2) (1,2,3,4) {7,5,12,7,2}
 [.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}",
         33)]
+    [TestCase(@"[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}", 11)]
     [TestCase(@"Task10.txt", 0)]
     public void Task(string input, long expected)
     {
@@ -32,11 +33,6 @@ public class Task10_2
                 .ToList();
 
             var b = splits.Last().Trim('{', '}').SplitEmpty(",").Select(long.Parse).ToArray();
-
-            var delta = buttons.Count - b.Length;
-            if (maxDelta < delta) maxDelta = delta;
-            //if (maxB < b.Max()) maxB = b.Max();
-
             var a = new Matrix(b.Select(_ => Enumerable.Repeat(0L, buttons.Count).ToArray()).ToList());
             for (var i = 0; i < a.Count; i++)
             for (var j = 0; j < a[i].Length; ++j)
@@ -47,57 +43,68 @@ public class Task10_2
                     a[i][j] = 0;
             }
 
+            var bMax = b.Max();
+
             Triangle(a, b);
 
-            var m = a.SelectMany(x => x).Concat(b).Max();
-            if (maxB < m) maxB = m;
-
-            result = maxB;
+            var solutions = Solve(a, b, bMax, []);
+            result += solutions.Where(x => x.All(y => y >= 0)).Min(x => x.Sum());
         }
 
         result.Should().Be(expected);
     }
 
-    private long K(List<long[]> a, long[] b)
+    private List<long[]> Solve(Matrix a, long[] b, long bMax, List<long> solves)
     {
-        var maxs = Enumerable.Repeat(0L, a[0].Length).ToArray();
-        for (var j = 0; j < a[0].Length; ++j)
+        if (a.Count == 0)
         {
-            var max = 1L;
-            for (var i = 0; i < a.Count; ++i)
-            {
-                if (a[i][j] == 0) continue;
-                if (max < b[i])
-                {
-                    max = b[i];
-                }
-            }
-
-            maxs[j] = max;
+            return [solves.ToArray()];
         }
 
-        return maxs.Aggregate(1L, (d, d1) => d * d1);
-    }
-
-    private (Matrix a, long[] b) Normalize(Matrix a, long[] b)
-    {
-        var newA = new Matrix();
-        var newB = new List<long>();
-        var cache = new HashSet<string>();
-
-        for (var i = 0; i < a.Count; i++)
+        for (var i = a.Count - 1; i >= 0; i--)
         {
-            var line = a[i].JoinToString(",");
-            if (!cache.Add(line))
-            {
+            var row = a[i];
+            if (row.All(x => x == 0))
                 continue;
+
+            var items = row.Select((item, index) => (item, index)).Where(x => x.item != 0).ToArray();
+            if (items.Length == 1)
+            {
+                var item = items.Single();
+                if (b[i] % item.item != 0) return [];
+                var s = b[i] / item.item;
+
+                solves.Add(s);
+
+                var newMatrix =
+                    new Matrix(a.Take(i).Select(r => r.Take(item.index).Concat(r.Skip(item.index + 1)).ToArray()));
+                var newB = b.Take(i).Select((x, index) => x - s * a[index][item.index]).ToArray();
+
+                return Solve(newMatrix, newB, bMax, solves);
             }
 
-            newA.Add(a[i]);
-            newB.Add(b[i]);
+            if (items.Length > 1)
+            {
+                var results = new List<long[]>();
+
+                for (var s = 0; s <= bMax; ++s)
+                {
+                    var idx = items.Last().index;
+                    var newMatrix = new Matrix(a.Select(r => r.Take(idx).Concat(r.Skip(idx + 1)).ToArray()));
+                    var newB = b.Select((x, index) => x - s * a[index][idx]).ToArray();
+                    var newSolves = solves.ToList();
+                    newSolves.Add(s);
+
+                    results.AddRange(Solve(newMatrix, newB, bMax, newSolves));
+                }
+
+                return results;
+            }
+
+            throw new Exception("Strange things");
         }
 
-        return (newA, newB.ToArray());
+        throw new Exception("Strange things 2");
     }
 
     private static void Triangle(Matrix a, long[] b)
@@ -125,9 +132,9 @@ public class Task10_2
         {
             var baseTop = a[i][i];
             var baseBottom = a[r][i];
-            
+
             if (baseBottom == 0) continue;
-            
+
             var newTopRow = a[i].Select(x => x * baseBottom).ToArray();
             var newBottomRow = a[r].Select(x => x * baseTop).ToArray();
             var newRow = newBottomRow.Select((x, index) => x - newTopRow[index]).ToArray();
@@ -188,7 +195,7 @@ public class Task10_2
             .Returns(@"2 4 1 7
 0 3 6 8
 0 0 189 101");
-        
+
         yield return new TestCaseData(new Matrix
             {
                 new long[] { 0, 3, 6 },
@@ -208,15 +215,14 @@ public class Task10_2
     {
         public Matrix()
         {
-            
         }
 
         public Matrix(IEnumerable<long[]> collection) : base(collection)
         {
-            
         }
-        
-        public string Dbg {
+
+        public string Dbg
+        {
             get
             {
                 var sb = new StringBuilder();
@@ -224,10 +230,9 @@ public class Task10_2
                 {
                     sb.AppendLine(row.JoinToString(" "));
                 }
-                return  sb.ToString();
+
+                return sb.ToString();
             }
         }
-
-
     }
 }
