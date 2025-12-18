@@ -210,7 +210,7 @@ public class Task10_2
 0 0 0 0");
     }
 
-    [DebuggerDisplay("{Dbg}")]
+    //[DebuggerDisplay("{Dbg}")]
     public class Matrix : List<long[]>
     {
         public Matrix()
