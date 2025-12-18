@@ -15,7 +15,7 @@ public class Task10_2
 [.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}",
         33)]
     [TestCase(@"[.###.#] (0,1,2,3,4) (0,3,4) (0,1,2,4,5) (1,2) {10,11,11,5,10,5}", 11)]
-    [TestCase(@"Task10.txt", 0)]
+    [TestCase(@"Task10.txt", 16613)]
     public void Task(string input, long expected)
     {
         input = File.Exists(input) ? File.ReadAllText(input) : input;

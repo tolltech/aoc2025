@@ -43,7 +43,7 @@ public class Task12
 12x5: 1 0 1 0 2 2
 12x5: 1 0 1 0 3 2",
         2)]
-    [TestCase(@"Task12.txt", 0)]
+    [TestCase(@"Task12.txt", 469)]
     public void Task(string input, long expected)
     {
         input = File.Exists(input) ? File.ReadAllText(input) : input;
